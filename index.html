@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Indoor Navigation Demo</title>
+
+  <style>
+    body {
+      font-family: Arial;
+      background: #111;
+      color: #fff;
+      text-align: center;
+    }
+
+    #map {
+      position: relative;
+      width: 600px;
+      height: 300px;
+      margin: auto;
+      margin-top: 500px;
+      background: #222;
+      border: 2px solid #0f0;
+      transition: transform 0.6s linear;
+      transform-origin: center center;
+    }
+
+    .zone {
+      position: absolute;
+      border: 1px dashed #555;
+      font-size: 12px;
+    }
+
+
+    #room { left: 10px; top: 50px; width: 150px; height: 120px; }
+    #corridor1 { left: 170px; top: 90px; width: 150px; height: 40px; }
+    #turn { left: 330px; top: 90px; width: 40px; height: 40px; }
+    #corridor2 { left: 330px; top: 140px; width: 40px; height: 130px; }
+    #lift { left: 380px; top: 250px; width:40px; height: 40px; }
+
+    #user {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      background: red;
+      border-radius: 50%;
+      transition: 0.5s;
+    }
+
+    button {
+      padding: 10px;
+      margin: 15px;
+      font-size: 16px;
+    }
+  </style>
+</head>
+
+<body>
+
+<h2>Indoor Tracking Demo (Room → Lift)</h2>
+<p>Current Location: <span id="loc">Unknown</span></p>
+<button onclick="startScan()">Start Tracking</button>
+<button onclick="rotateMap()">Rotate Map</button>
+
+<div id="map">
+  <div class="zone" id="room">M201</div>
+  <div class="zone" id="corridor1">Corridor</div>
+  <div class="zone" id="turn">Turn</div>
+  <div class="zone" id="corridor2">Path</div>
+  <div class="zone" id="lift">Lift</div>
+
+  <div id="user"></div>
+</div>
+
+<script>
+const beaconMap = {
+  "B1": "room",
+  "B2": "room",
+  "B3": "corridor1",
+  "B4": "corridor1",
+  "B5": "turn",
+  "B6": "lift"
+};
+
+const zonePosition = {
+  room: { x: 80, y: 110 },
+  corridor1: { x: 240, y: 110 },
+  turn: { x: 350, y: 130 },
+  corridor2: { x: 400, y: 200 },
+  lift: { x: 530, y: 200 }
+};
+
+let strongestBeacon = null;
+
+async function startScan() {
+  const device = await navigator.bluetooth.requestDevice({
+    acceptAllDevices: true
+  });
+
+  device.addEventListener('advertisementreceived', event => {
+    const name = event.device.name;
+    const rssi = event.rssi;
+
+    if (!beaconMap[name] || rssi < -80) return;
+
+    strongestBeacon = name;
+    updateLocation(beaconMap[name]);
+  });
+
+  await device.watchAdvertisements();
+}
+
+function updateLocation(zone) {
+  const pos = zonePosition[zone];
+  const user = document.getElementById("user");
+
+  user.style.left = pos.x + "px";
+  user.style.top = pos.y + "px";
+
+  document.getElementById("loc").innerText = zone.toUpperCase();
+}
+
+let angle = 0;
+
+function rotateMap() {
+  angle += 90;   // change to 30, 45, 60, 90 as you like
+  document.getElementById("map").style.transform =
+    `rotate(${angle}deg)`;
+}
+
+</script>
+
+</body>
+</html>
