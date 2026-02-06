@@ -79,93 +79,31 @@
 </div>
 
 <script>
-/* ---------------- BEACON → LOCATION MAP ---------------- */
-
-const beaconMap = {
-  "B1": "room",
-  "B2": "room",
-  "B3": "corridor1",
-  "B4": "corridor1",
-  "B5": "turn",
-  "B6": "lift"
-};
-
-const zonePosition = {
-  room: { x: 80, y: 110 },
-  corridor1: { x: 240, y: 110 },
-  turn: { x: 350, y: 110 },
-  corridor2: { x: 350, y: 200 },
-  lift: { x: 400, y: 270 }
-};
-
-/* ---------------- BLE SCANNING LOGIC ---------------- */
-
-let bleScan = null;
-let lastZone = null;
-
 async function startScan() {
   try {
-    bleScan = await navigator.bluetooth.requestLEScan({
+    await navigator.bluetooth.requestLEScan({
       acceptAllAdvertisements: true
     });
 
     navigator.bluetooth.addEventListener(
       "advertisementreceived",
-      handleAdvertisement
+      event => {
+        console.log(
+          "ADV:",
+          event.device.name,
+          event.advertisement.localName,
+          event.rssi
+        );
+      }
     );
 
-    console.log("✅ BLE scan started");
-  } catch (err) {
-    console.error("❌ BLE scan error:", err);
+    console.log("Scan started");
+  } catch (e) {
+    console.error(e);
   }
-}
-
-function handleAdvertisement(event) {
-  const rssi = event.rssi;
-
-  const name =
-    event.device.name ||
-    event.advertisement.localName;
-
-  console.log("Seen:", name, "RSSI:", rssi);
-
-  if (!name) return;
-  if (!beaconMap[name]) return;
-  if (rssi < -90) return;   // relaxed threshold for testing
-
-  const zone = beaconMap[name];
-
-  if (zone !== lastZone) {
-    lastZone = zone;
-    updateLocation(zone);
-  }
-}
-
-/* ---------------- UI UPDATE ---------------- */
-
-function updateLocation(zone) {
-  const pos = zonePosition[zone];
-  const user = document.getElementById("user");
-
-  user.style.left = pos.x + "px";
-  user.style.top = pos.y + "px";
-
-  document.getElementById("loc").innerText =
-    zone.toUpperCase();
-
-  console.log("📍 Location updated to:", zone);
-}
-
-/* ---------------- MAP ROTATION ---------------- */
-
-let angle = 0;
-
-function rotateMap() {
-  angle += 90;
-  document.getElementById("map").style.transform =
-    `rotate(${angle}deg)`;
 }
 </script>
 
 </body>
 </html>
+
