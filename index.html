@@ -81,29 +81,46 @@
 <script>
 async function startScan() {
   try {
-    await navigator.bluetooth.requestLEScan({
-      acceptAllAdvertisements: true
+    const device = await navigator.bluetooth.requestDevice({
+      acceptAllDevices: true
     });
 
-    navigator.bluetooth.addEventListener(
-      "advertisementreceived",
-      event => {
-        console.log(
-          "ADV:",
-          event.device.name,
-          event.advertisement.localName,
-          event.rssi
-        );
-      }
+    console.log("Selected device:", device.name);
+
+    device.addEventListener(
+      'advertisementreceived',
+      event => handleAdvertisement(event)
     );
 
-    console.log("Scan started");
-  } catch (e) {
-    console.error(e);
+    await device.watchAdvertisements();
+
+    console.log("Advertisement watching started");
+
+  } catch (err) {
+    console.error("Bluetooth error:", err);
   }
 }
+
+
+  function handleAdvertisement(event) {
+  const rssi = event.rssi;
+
+  const name =
+    event.device.name ||
+    event.advertisement.localName;
+
+  console.log("Seen:", name, "RSSI:", rssi);
+
+  if (!name) return;
+  if (!beaconMap[name]) return;
+  if (rssi < -90) return;  // relaxed for testing
+
+  updateLocation(beaconMap[name]);
+}
+
 </script>
 
 </body>
 </html>
+
 
