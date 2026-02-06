@@ -1,22 +1,29 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8">
   <title>Indoor Navigation Demo</title>
 
   <style>
     body {
-      font-family: Arial;
+      font-family: Arial, sans-serif;
       background: #111;
       color: #fff;
       text-align: center;
+    }
+
+    button {
+      padding: 10px 16px;
+      margin: 10px;
+      font-size: 16px;
+      cursor: pointer;
     }
 
     #map {
       position: relative;
       width: 600px;
       height: 300px;
-      margin: auto;
-      margin-top: 500px;
+      margin: 40px auto;
       background: #222;
       border: 2px solid #0f0;
       transition: transform 0.6s linear;
@@ -27,14 +34,16 @@
       position: absolute;
       border: 1px dashed #555;
       font-size: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
-
 
     #room { left: 10px; top: 50px; width: 150px; height: 120px; }
     #corridor1 { left: 170px; top: 90px; width: 150px; height: 40px; }
     #turn { left: 330px; top: 90px; width: 40px; height: 40px; }
     #corridor2 { left: 330px; top: 140px; width: 40px; height: 130px; }
-    #lift { left: 380px; top: 250px; width:40px; height: 40px; }
+    #lift { left: 380px; top: 250px; width: 40px; height: 40px; }
 
     #user {
       position: absolute;
@@ -42,21 +51,20 @@
       height: 12px;
       background: red;
       border-radius: 50%;
-      transition: 0.5s;
-    }
-
-    button {
-      padding: 10px;
-      margin: 15px;
-      font-size: 16px;
+      transition: left 0.4s, top 0.4s;
     }
   </style>
 </head>
 
 <body>
 
-<h2>Indoor Tracking Demo (Room → Lift)</h2>
-<p>Current Location: <span id="loc">Unknown</span></p>
+<h2>Indoor BLE Tracking Demo (Room → Lift)</h2>
+
+<p>
+  Current Location:
+  <strong><span id="loc">Unknown</span></strong>
+</p>
+
 <button onclick="startScan()">Start Tracking</button>
 <button onclick="rotateMap()">Rotate Map</button>
 
@@ -71,6 +79,8 @@
 </div>
 
 <script>
+/* ---------------- BEACON → LOCATION MAP ---------------- */
+
 const beaconMap = {
   "B1": "room",
   "B2": "room",
@@ -83,30 +93,55 @@ const beaconMap = {
 const zonePosition = {
   room: { x: 80, y: 110 },
   corridor1: { x: 240, y: 110 },
-  turn: { x: 350, y: 130 },
-  corridor2: { x: 400, y: 200 },
-  lift: { x: 530, y: 200 }
+  turn: { x: 350, y: 110 },
+  corridor2: { x: 350, y: 200 },
+  lift: { x: 400, y: 270 }
 };
 
-let strongestBeacon = null;
+/* ---------------- BLE SCANNING LOGIC ---------------- */
+
+let bleScan = null;
+let lastZone = null;
 
 async function startScan() {
-  const device = await navigator.bluetooth.requestDevice({
-    acceptAllDevices: true
-  });
+  try {
+    bleScan = await navigator.bluetooth.requestLEScan({
+      acceptAllAdvertisements: true
+    });
 
-  device.addEventListener('advertisementreceived', event => {
-    const name = event.device.name;
-    const rssi = event.rssi;
+    navigator.bluetooth.addEventListener(
+      "advertisementreceived",
+      handleAdvertisement
+    );
 
-    if (!beaconMap[name] || rssi < -80) return;
-
-    strongestBeacon = name;
-    updateLocation(beaconMap[name]);
-  });
-
-  await device.watchAdvertisements();
+    console.log("✅ BLE scan started");
+  } catch (err) {
+    console.error("❌ BLE scan error:", err);
+  }
 }
+
+function handleAdvertisement(event) {
+  const rssi = event.rssi;
+
+  const name =
+    event.device.name ||
+    event.advertisement.localName;
+
+  console.log("Seen:", name, "RSSI:", rssi);
+
+  if (!name) return;
+  if (!beaconMap[name]) return;
+  if (rssi < -90) return;   // relaxed threshold for testing
+
+  const zone = beaconMap[name];
+
+  if (zone !== lastZone) {
+    lastZone = zone;
+    updateLocation(zone);
+  }
+}
+
+/* ---------------- UI UPDATE ---------------- */
 
 function updateLocation(zone) {
   const pos = zonePosition[zone];
@@ -115,17 +150,21 @@ function updateLocation(zone) {
   user.style.left = pos.x + "px";
   user.style.top = pos.y + "px";
 
-  document.getElementById("loc").innerText = zone.toUpperCase();
+  document.getElementById("loc").innerText =
+    zone.toUpperCase();
+
+  console.log("📍 Location updated to:", zone);
 }
+
+/* ---------------- MAP ROTATION ---------------- */
 
 let angle = 0;
 
 function rotateMap() {
-  angle += 90;   // change to 30, 45, 60, 90 as you like
+  angle += 90;
   document.getElementById("map").style.transform =
     `rotate(${angle}deg)`;
 }
-
 </script>
 
 </body>
